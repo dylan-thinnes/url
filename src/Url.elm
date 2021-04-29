@@ -58,9 +58,10 @@ type alias Url =
   }
 
 
-{-| Is the URL served over a secure connection or not?
+{-| Is the URL served over a secure connection or not? Is it some protocol
+other than HTTP/HTTPS?
 -}
-type Protocol = Http | Https
+type Protocol = Http | Https | Custom String
 
 
 {-| Attempt to break a URL up into [`Url`](#Url). This is useful in
@@ -110,14 +111,43 @@ and `&` characters!
 -}
 fromString : String -> Maybe Url
 fromString str =
-  if String.startsWith "http://" str then
-    chompAfterProtocol Http (String.dropLeft 7 str)
+  case String.indices "://" str of
+    [] ->
+      Nothing
 
-  else if String.startsWith "https://" str then
-    chompAfterProtocol Https (String.dropLeft 8 str)
+    protocolIndex :: _ ->
+      let
+        protocolStr =
+          String.left protocolIndex str
 
-  else
-    Nothing
+        protocolIsValid =
+          case String.toList protocolStr of
+            [] ->
+              False
+
+            firstChar :: restChars ->
+              let
+                validRestChar c =
+                  Char.isAlpha c || Char.isDigit c || c == '+' || c == '-'
+              in
+              Char.isAlpha firstChar && List.all validRestChar restChars
+
+        protocol =
+          case protocolStr of
+            "http" ->
+              Http
+
+            "https" ->
+              Https
+
+            _ ->
+              Custom protocolStr
+      in
+      if not protocolIsValid then
+        Nothing
+
+      else
+        chompAfterProtocol protocol (String.dropLeft (String.length protocolStr + 3) str)
 
 
 chompAfterProtocol : Protocol -> String -> Maybe Url
@@ -192,8 +222,12 @@ toString url =
 
         Https ->
           "https://"
+
+        Custom protocol ->
+          protocol ++ "://"
   in
-  addPort url.port_ (http ++ url.host) ++ url.path
+  addPort url.port_ (http ++ url.host)
+    ++ url.path
     |> addPrefixed "?" url.query
     |> addPrefixed "#" url.fragment
 
