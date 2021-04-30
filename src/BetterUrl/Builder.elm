@@ -1,4 +1,4 @@
-module Url.Builder exposing
+module BetterUrl.Builder exposing
   ( absolute, relative, crossOrigin, custom, Root(..)
   , QueryParameter, string, int, toQuery
   )
@@ -26,7 +26,7 @@ This module helps you create these!
 -}
 
 
-import Url
+import BetterUrl
 
 
 
@@ -178,7 +178,7 @@ type QueryParameter =
 -}
 string : String -> String -> QueryParameter
 string key value =
-  QueryParameter (Url.percentEncode key) (Url.percentEncode value)
+  QueryParameter (BetterUrl.percentEncode key) (BetterUrl.percentEncode value)
 
 
 {-| Create a percent-encoded query parameter.
@@ -191,7 +191,7 @@ So this is just a convenience function, making your code a bit shorter!
 -}
 int : String -> Int -> QueryParameter
 int key value =
-  QueryParameter (Url.percentEncode key) (String.fromInt value)
+  QueryParameter (BetterUrl.percentEncode key) (String.fromInt value)
 
 
 {-| Convert a list of query parameters to a percent-encoded query. This

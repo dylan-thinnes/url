@@ -1,4 +1,4 @@
-module Url.Parser exposing
+module BetterUrl.Parser exposing
   ( Parser, string, int, s
   , (</>), map, oneOf, top, custom
   , (<?>), query
@@ -37,9 +37,9 @@ This module is primarily for parsing the `path` part.
 -}
 
 import Dict exposing (Dict)
-import Url exposing (Url)
-import Url.Parser.Query as Query
-import Url.Parser.Internal as Q
+import BetterUrl exposing (Url)
+import BetterUrl.Parser.Query as Query
+import BetterUrl.Parser.Internal as Q
 
 
 
@@ -468,12 +468,12 @@ addParam : String -> Dict String (List String) -> Dict String (List String)
 addParam segment dict =
   case String.split "=" segment of
     [rawKey, rawValue] ->
-      case Url.percentDecode rawKey of
+      case BetterUrl.percentDecode rawKey of
         Nothing ->
           dict
 
         Just key ->
-          case Url.percentDecode rawValue of
+          case BetterUrl.percentDecode rawValue of
             Nothing ->
               dict
 

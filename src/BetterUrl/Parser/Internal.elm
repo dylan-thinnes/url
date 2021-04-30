@@ -1,4 +1,4 @@
-module Url.Parser.Internal exposing
+module BetterUrl.Parser.Internal exposing
   ( QueryParser(..)
   )
 

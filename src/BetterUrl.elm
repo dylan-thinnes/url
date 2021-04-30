@@ -1,25 +1,23 @@
-module Url exposing
-  ( Url
-  , Protocol(..)
-  , toString
-  , fromString
-  , percentEncode
-  , percentDecode
-  )
-
+module BetterUrl exposing
+    ( Url, Protocol(..), toString, fromString
+    , percentEncode, percentDecode
+    )
 
 {-|
 
+
 # URLs
+
 @docs Url, Protocol, toString, fromString
 
+
 # Percent-Encoding
+
 @docs percentEncode, percentDecode
 
 -}
 
-
-import Elm.Kernel.Url
+import Url
 
 
 
@@ -29,12 +27,10 @@ import Elm.Kernel.Url
 {-| In [the URI spec](https://tools.ietf.org/html/rfc3986), Tim Berners-Lee
 says a URL looks like this:
 
-```
-  https://example.com:8042/over/there?name=ferret#nose
-  \___/   \______________/\_________/ \_________/ \__/
-    |            |            |            |        |
-  scheme     authority       path        query   fragment
-```
+      https://example.com:8042/over/there?name=ferret#nose
+      \___/   \______________/\_________/ \_________/ \__/
+        |            |            |            |        |
+      scheme     authority       path        query   fragment
 
 When you are creating a single-page app with [`Browser.application`][app], you
 use the [`Url.Parser`](Url-Parser) module to turn a `Url` into even nicer data.
@@ -47,21 +43,25 @@ module as well!
 **Note:** This is a subset of all the full possibilities listed in the URI
 spec. Specifically, it does not accept the `userinfo` segment you see in email
 addresses like `tom@example.com`.
+
 -}
 type alias Url =
-  { protocol : Protocol
-  , host : String
-  , port_ : Maybe Int
-  , path : String
-  , query : Maybe String
-  , fragment : Maybe String
-  }
+    { protocol : Protocol
+    , host : String
+    , port_ : Maybe Int
+    , path : String
+    , query : Maybe String
+    , fragment : Maybe String
+    }
 
 
 {-| Is the URL served over a secure connection or not? Is it some protocol
 other than HTTP/HTTPS?
 -}
-type Protocol = Http | Https | Custom String
+type Protocol
+    = Http
+    | Https
+    | Custom String
 
 
 {-| Attempt to break a URL up into [`Url`](#Url). This is useful in
@@ -100,156 +100,163 @@ what to show on screen.
 
 The conversion to segments can fail in some cases as well:
 
-    fromString "example.com:443"        == Nothing  -- no protocol
-    fromString "http://tom@example.com" == Nothing  -- userinfo disallowed
-    fromString "http://#cats"           == Nothing  -- no host
+    fromString "example.com:443" == Nothing -- no protocol
+
+    fromString "http://tom@example.com" == Nothing -- userinfo disallowed
+
+    fromString "http://#cats" == Nothing -- no host
 
 **Note:** This function does not use [`percentDecode`](#percentDecode) anything.
 It just splits things up. [`Url.Parser`](Url-Parser) actually _needs_ the raw
 `query` string to parse it properly. Otherwise it could get confused about `=`
 and `&` characters!
+
 -}
 fromString : String -> Maybe Url
 fromString str =
-  case String.indices "://" str of
-    [] ->
-      Nothing
+    case String.indices "://" str of
+        [] ->
+            Nothing
 
-    protocolIndex :: _ ->
-      let
-        protocolStr =
-          String.left protocolIndex str
+        protocolIndex :: _ ->
+            let
+                protocolStr =
+                    String.left protocolIndex str
 
-        protocolIsValid =
-          case String.toList protocolStr of
-            [] ->
-              False
+                protocolIsValid =
+                    case String.toList protocolStr of
+                        [] ->
+                            False
 
-            firstChar :: restChars ->
-              let
-                validRestChar c =
-                  Char.isAlpha c || Char.isDigit c || c == '+' || c == '-'
-              in
-              Char.isAlpha firstChar && List.all validRestChar restChars
+                        firstChar :: restChars ->
+                            let
+                                validRestChar c =
+                                    Char.isAlpha c || Char.isDigit c || c == '+' || c == '-'
+                            in
+                            Char.isAlpha firstChar && List.all validRestChar restChars
 
-        protocol =
-          case protocolStr of
-            "http" ->
-              Http
+                protocol =
+                    case protocolStr of
+                        "http" ->
+                            Http
 
-            "https" ->
-              Https
+                        "https" ->
+                            Https
 
-            _ ->
-              Custom protocolStr
-      in
-      if not protocolIsValid then
-        Nothing
+                        _ ->
+                            Custom protocolStr
+            in
+            if not protocolIsValid then
+                Nothing
 
-      else
-        chompAfterProtocol protocol (String.dropLeft (String.length protocolStr + 3) str)
+            else
+                chompAfterProtocol protocol (String.dropLeft (String.length protocolStr + 3) str)
 
 
 chompAfterProtocol : Protocol -> String -> Maybe Url
 chompAfterProtocol protocol str =
-  if String.isEmpty str then
-    Nothing
-  else
-    case String.indexes "#" str of
-      [] ->
-        chompBeforeFragment protocol Nothing str
+    if String.isEmpty str then
+        Nothing
 
-      i :: _ ->
-        chompBeforeFragment protocol (Just (String.dropLeft (i + 1) str)) (String.left i str)
+    else
+        case String.indexes "#" str of
+            [] ->
+                chompBeforeFragment protocol Nothing str
+
+            i :: _ ->
+                chompBeforeFragment protocol (Just (String.dropLeft (i + 1) str)) (String.left i str)
 
 
 chompBeforeFragment : Protocol -> Maybe String -> String -> Maybe Url
 chompBeforeFragment protocol frag str =
-  if String.isEmpty str then
-    Nothing
-  else
-    case String.indexes "?" str of
-      [] ->
-        chompBeforeQuery protocol Nothing frag str
+    if String.isEmpty str then
+        Nothing
 
-      i :: _ ->
-        chompBeforeQuery protocol (Just (String.dropLeft (i + 1) str)) frag (String.left i str)
+    else
+        case String.indexes "?" str of
+            [] ->
+                chompBeforeQuery protocol Nothing frag str
+
+            i :: _ ->
+                chompBeforeQuery protocol (Just (String.dropLeft (i + 1) str)) frag (String.left i str)
 
 
 chompBeforeQuery : Protocol -> Maybe String -> Maybe String -> String -> Maybe Url
 chompBeforeQuery protocol params frag str =
-  if String.isEmpty str then
-    Nothing
-  else
-    case String.indexes "/" str of
-      [] ->
-        chompBeforePath protocol "/" params frag str
+    if String.isEmpty str then
+        Nothing
 
-      i :: _ ->
-        chompBeforePath protocol (String.dropLeft i str) params frag (String.left i str)
+    else
+        case String.indexes "/" str of
+            [] ->
+                chompBeforePath protocol "/" params frag str
+
+            i :: _ ->
+                chompBeforePath protocol (String.dropLeft i str) params frag (String.left i str)
 
 
 chompBeforePath : Protocol -> String -> Maybe String -> Maybe String -> String -> Maybe Url
 chompBeforePath protocol path params frag str =
-  if String.isEmpty str || String.contains "@" str then
-    Nothing
-  else
-    case String.indexes ":" str of
-      [] ->
-        Just <| Url protocol str Nothing path params frag
-
-      i :: [] ->
-        case String.toInt (String.dropLeft (i + 1) str) of
-          Nothing ->
-            Nothing
-
-          port_ ->
-            Just <| Url protocol (String.left i str) port_ path params frag
-
-      _ ->
+    if String.isEmpty str || String.contains "@" str then
         Nothing
+
+    else
+        case String.indexes ":" str of
+            [] ->
+                Just <| Url protocol str Nothing path params frag
+
+            i :: [] ->
+                case String.toInt (String.dropLeft (i + 1) str) of
+                    Nothing ->
+                        Nothing
+
+                    port_ ->
+                        Just <| Url protocol (String.left i str) port_ path params frag
+
+            _ ->
+                Nothing
 
 
 {-| Turn a [`Url`](#Url) into a `String`.
 -}
 toString : Url -> String
 toString url =
-  let
-    http =
-      case url.protocol of
-        Http ->
-          "http://"
+    let
+        http =
+            case url.protocol of
+                Http ->
+                    "http://"
 
-        Https ->
-          "https://"
+                Https ->
+                    "https://"
 
-        Custom protocol ->
-          protocol ++ "://"
-  in
-  addPort url.port_ (http ++ url.host)
-    ++ url.path
-    |> addPrefixed "?" url.query
-    |> addPrefixed "#" url.fragment
+                Custom protocol ->
+                    protocol ++ "://"
+    in
+    addPort url.port_ (http ++ url.host)
+        ++ url.path
+        |> addPrefixed "?" url.query
+        |> addPrefixed "#" url.fragment
 
 
 addPort : Maybe Int -> String -> String
 addPort maybePort starter =
-  case maybePort of
-    Nothing ->
-      starter
+    case maybePort of
+        Nothing ->
+            starter
 
-    Just port_ ->
-      starter ++ ":" ++ String.fromInt port_
+        Just port_ ->
+            starter ++ ":" ++ String.fromInt port_
 
 
 addPrefixed : String -> Maybe String -> String -> String
 addPrefixed prefix maybeSegment starter =
-  case maybeSegment of
-    Nothing ->
-      starter
+    case maybeSegment of
+        Nothing ->
+            starter
 
-    Just segment ->
-      starter ++ prefix ++ segment
+        Just segment ->
+            starter ++ prefix ++ segment
 
 
 
@@ -268,13 +275,17 @@ This function exists in case you want to do something extra custom. Here are
 some examples:
 
     -- standard ASCII encoding
-    percentEncode "hat"   == "hat"
+    percentEncode "hat" == "hat"
+
     percentEncode "to be" == "to%20be"
-    percentEncode "99%"   == "99%25"
+
+    percentEncode "99%" == "99%25"
 
     -- non-standard, but widely accepted, UTF-8 encoding
     percentEncode "$" == "%24"
+
     percentEncode "¢" == "%C2%A2"
+
     percentEncode "€" == "%E2%82%AC"
 
 This is the same behavior as JavaScript's [`encodeURIComponent`][js] function,
@@ -285,10 +296,11 @@ notes about Unicode [here][wiki].
 [uri]: https://tools.ietf.org/html/rfc3986
 [s2]: https://tools.ietf.org/html/rfc3986#section-2.1
 [wiki]: https://en.wikipedia.org/wiki/Percent-encoding
+
 -}
 percentEncode : String -> String
 percentEncode =
-  Elm.Kernel.Url.percentEncode
+    Url.percentEncode
 
 
 {-| **Use [Url.Parser](Url-Parser) instead!** It will decode query
@@ -299,26 +311,33 @@ Check out the `percentEncode` function to learn about percent-encoding.
 This function does the opposite! Here are the reverse examples:
 
     -- ASCII
-    percentDecode "hat"       == Just "hat"
-    percentDecode "to%20be"   == Just "to be"
-    percentDecode "99%25"     == Just "99%"
+    percentDecode "hat" == Just "hat"
+
+    percentDecode "to%20be" == Just "to be"
+
+    percentDecode "99%25" == Just "99%"
 
     -- UTF-8
-    percentDecode "%24"       == Just "$"
-    percentDecode "%C2%A2"    == Just "¢"
+    percentDecode "%24" == Just "$"
+
+    percentDecode "%C2%A2" == Just "¢"
+
     percentDecode "%E2%82%AC" == Just "€"
 
 Why is it a `Maybe` though? Well, these strings come from strangers on the
 internet as a bunch of bits and may have encoding problems. For example:
 
-    percentDecode "%"   == Nothing  -- not followed by two hex digits
-    percentDecode "%XY" == Nothing  -- not followed by two HEX digits
-    percentDecode "%C2" == Nothing  -- half of the "¢" encoding "%C2%A2"
+    percentDecode "%" == Nothing -- not followed by two hex digits
+
+    percentDecode "%XY" == Nothing -- not followed by two HEX digits
+
+    percentDecode "%C2" == Nothing -- half of the "¢" encoding "%C2%A2"
 
 This is the same behavior as JavaScript's [`decodeURIComponent`][js] function.
 
 [js]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/decodeURIComponent
+
 -}
 percentDecode : String -> Maybe String
 percentDecode =
-  Elm.Kernel.Url.percentDecode
+    Url.percentDecode

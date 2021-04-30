@@ -1,4 +1,4 @@
-module Url.Parser.Query exposing
+module BetterUrl.Parser.Query exposing
   ( Parser, string, int, enum, custom
   , map, map2, map3, map4, map5, map6, map7, map8
   )
@@ -28,7 +28,7 @@ parameter by the `&` character.
 -}
 
 import Dict
-import Url.Parser.Internal as Q
+import BetterUrl.Parser.Internal as Q
 
 
 
